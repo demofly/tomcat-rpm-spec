@@ -1,19 +1,20 @@
 %define __jar_repack %{nil}
+
 %define tomcat_group tomcat
 %define tomcat_user tomcat
-%define tomcat_home /usr/share/uostomcat
-%define tomcat_user_home /srv/tomcat
-%define tomcat_cache_home /var/cache/uostomcat
-%define tomcat_conf_home %{_sysconfdir}/uostomcat
-%define tomcat_log_home /var/log/uostomcat
+%define tomcat_home /opt/tomcat
+%define tomcat_user_home /opt/tomcat
+%define tomcat_cache_home /opt/tomcat/cache
+%define tomcat_conf_home /opt/tomcat/conf
+%define tomcat_log_home /opt/tomcat/logs
 %define systemd_dir /usr/lib/systemd/system/
-%define tomcat_version 8.5.9
-%define tomcat_release 4
+%define tomcat_version 8.5.15
+%define tomcat_release 0
 
 Summary:    Apache Servlet/JSP Engine, RI for Servlet 3.1/JSP 2.3 API
-Name:       uostomcat
+Name:       ecp-tomcat
 Version:    %{tomcat_version}
-BuildArch:  noarch
+BuildArch:  x86_64
 Release:    %{tomcat_release}
 License:    Apache Software License
 Group:      Networking/Daemons
@@ -50,13 +51,13 @@ cp -R * %{buildroot}/%{tomcat_home}/
 
 # Remove all the useless webapps. manager and host-manager are packaged 
 # in subpackages and are %excluded from the main package
-rm -rf %{buildroot}/%{tomcat_home}/webapps/examples
-rm -rf %{buildroot}/%{tomcat_home}/webapps/docs
-rm -rf %{buildroot}/%{tomcat_home}/webapps/ROOT
+###rm -rf %{buildroot}/%{tomcat_home}/webapps/examples
+###rm -rf %{buildroot}/%{tomcat_home}/webapps/docs
+###rm -rf %{buildroot}/%{tomcat_home}/webapps/ROOT
 install -d -m 775 %{buildroot}%{tomcat_user_home}/webapps
 cd %{buildroot}/%{tomcat_user_home}/webapps
-ln -s %{tomcat_home}/webapps/manager
-ln -s %{tomcat_home}/webapps/host-manager
+###ln -s %{tomcat_home}/webapps/manager
+###ln -s %{tomcat_home}/webapps/host-manager
 chmod 775 %{buildroot}/%{tomcat_user_home}
 cd -
 
@@ -76,14 +77,14 @@ rm -f %{buildroot}/%{tomcat_home}/RUNNING.txt
 rm -rf %{buildroot}/%{tomcat_home}/logs
 install -d -m 755 %{buildroot}%{tomcat_log_home}/
 cd %{buildroot}/%{tomcat_home}/
-ln -s %{tomcat_log_home}/ logs
+###ln -s %{tomcat_log_home}/ logs
 cd -
 
 # Put conf in a custom location and link back.
 install -d -m 755 %{buildroot}/%{_sysconfdir}
-mv %{buildroot}/%{tomcat_home}/conf %{buildroot}/%{tomcat_conf_home}
+### mv %{buildroot}/%{tomcat_home}/conf %{buildroot}/%{tomcat_conf_home}
 cd %{buildroot}/%{tomcat_home}/
-ln -s %{tomcat_conf_home} conf
+###ln -s %{tomcat_conf_home} conf
 cd -
 
 # Replace the appBase in the server.xml appropriately
@@ -94,8 +95,11 @@ install -d -m 775 %{buildroot}%{tomcat_cache_home}
 mv %{buildroot}/%{tomcat_home}/temp %{buildroot}/%{tomcat_cache_home}/
 mv %{buildroot}/%{tomcat_home}/work %{buildroot}/%{tomcat_cache_home}/
 cd %{buildroot}/%{tomcat_home}/
-ln -s %{tomcat_cache_home}/temp
-ln -s %{tomcat_cache_home}/work
+###ln -s %{tomcat_cache_home}/temp
+###ln -s %{tomcat_cache_home}/work
+mkdir  %{buildroot}/%{tomcat_home}/temp
+mkdir  %{buildroot}/%{tomcat_home}/work
+mkdir -p  %{buildroot}/%{tomcat_home}/conf/Catalina/localhost
 chmod 775 %{buildroot}/%{tomcat_cache_home}/temp
 chmod 775 %{buildroot}/%{tomcat_cache_home}/work
 cd -
@@ -120,54 +124,23 @@ getent group %{tomcat_group} >/dev/null || groupadd -g 91 -r %{tomcat_group}
 getent passwd %{tomcat_user} >/dev/null || /usr/sbin/useradd -u 91 --comment "Apache Tomcat" --shell /sbin/nologin -M -r -g %{tomcat_group} --home %{tomcat_home} %{tomcat_user}
 
 %files
-%defattr(-,%{tomcat_user},%{tomcat_group},0770)
-%{tomcat_log_home}/
 %defattr(-,root,root)
 %{tomcat_user_home}
 %{tomcat_home}
 %{systemd_dir}/%{name}.service
 %{_sysconfdir}/logrotate.d/%{name}
-%defattr(-,root,%{tomcat_group})
+%defattr(-,%{tomcat_user},%{tomcat_group},0770)
+%{tomcat_log_home}
+%{tomcat_log_home}/
+%{tomcat_home}/webapps/*
 %{tomcat_cache_home}
-%exclude %{tomcat_home}/webapps/manager
-%exclude %{tomcat_home}/webapps/host-manager
-%exclude %{tomcat_user_home}/webapps/manager
-%exclude %{tomcat_user_home}/webapps/host-manager
+%{tomcat_home}/webapps
+%{tomcat_home}/temp/
+%{tomcat_home}/work/
+%{tomcat_home}/conf/Catalina/localhost
+
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %config(noreplace) %{tomcat_conf_home}/*
 
 %post
 /bin/systemctl daemon-reload
-
-%package admin-webapps
-
-Summary:    Admin Webapps for Apache Tomcat
-Version:    %{tomcat_version}
-BuildArch:  noarch
-Release:    %{tomcat_release}
-License:    Apache Software License
-Group:      Networking/Daemons
-Requires:   uostomcat >= %{tomcat_version}-%{tomcat_release}
-BuildRoot:  %{_tmppath}/%{name}-admin-webapps-%{version}-%{release}-root-%(%{__id_u} -n)
-
-%description admin-webapps
-Tomcat is the servlet container that is used in the official Reference
-Implementation for the Java Servlet and JavaServer Pages technologies.
-The Java Servlet and JavaServer Pages specifications are developed by
-Oracle under the Java Community Process.
-
-Tomcat is developed in an open and participatory environment and
-released under the Apache Software License. Tomcat is intended to be
-a collaboration of the best-of-breed developers from around the world.
-We invite you to participate in this open development project. To
-learn more about getting involved, click here.
-
-This package contains the manager and host-manager webapps used to
-assist in the deploying and configuration of Tomcat. 
-
-%files admin-webapps
-
-%{tomcat_home}/webapps/manager/
-%{tomcat_home}/webapps/host-manager/
-%{tomcat_user_home}/webapps/manager
-%{tomcat_user_home}/webapps/host-manager

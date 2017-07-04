@@ -1,4 +1,4 @@
-/var/log/uostomcat/catalina.out {
+/opt/tomcat/logs/catalina.out {
   copytruncate
   daily
   rotate 7
